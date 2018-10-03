@@ -76,8 +76,20 @@ class SyncAdapter extends AbstractThreadedSyncAdapter {
         } catch (ProtocolException e) {
             e.printStackTrace();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(LOG_TAG, "Error ", e);
+        } finally {
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+            }
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (final IOException e) {
+                    Log.e(LOG_TAG, "Error closing stream", e);
+                }
+            }
         }
+        return;
     }
 
     private void getDataFromJson(String jsonStr) {
