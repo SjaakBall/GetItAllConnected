@@ -81,5 +81,7 @@ class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void getDataFromJson(String jsonStr) {
+        //get data from json
+        //put data in local database
     }
 }
