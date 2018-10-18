@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">GetItAllConnected</string>
+
+    <!-- SyncAdapter related -->
+    <string name="sync_account_type">getitallconnected.indrisoftware.com</string>
+    <string name="content_authority">com.indrisoftware.android.getitallconnected.app</string>
 </resources>
