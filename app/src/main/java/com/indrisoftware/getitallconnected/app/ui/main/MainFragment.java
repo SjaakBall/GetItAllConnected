@@ -1,4 +1,4 @@
-package com.indrisoftware.getitallconnected.getitallconnected.ui.main;
+package com.indrisoftware.getitallconnected.app.ui.main;
 
 import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
@@ -9,7 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.indrisoftware.getitallconnected.getitallconnected.R;
+import com.indrisoftware.getitallconnected.app.R;
 
 public class MainFragment extends Fragment {
 

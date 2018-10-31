@@ -1,4 +1,4 @@
-package com.indrisoftware.getitallconnected.getitallconnected.sync;
+package com.indrisoftware.getitallconnected.app.sync;
 
 import android.accounts.AbstractAccountAuthenticator;
 import android.accounts.Account;

@@ -1,10 +1,10 @@
-package com.indrisoftware.getitallconnected.getitallconnected;
+package com.indrisoftware.getitallconnected.app;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
-import com.indrisoftware.getitallconnected.getitallconnected.sync.SyncAdapter;
-import com.indrisoftware.getitallconnected.getitallconnected.ui.main.MainFragment;
+import com.indrisoftware.getitallconnected.app.sync.SyncAdapter;
+import com.indrisoftware.getitallconnected.app.ui.main.MainFragment;
 
 public class MainActivity extends AppCompatActivity {
 

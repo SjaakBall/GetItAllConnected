@@ -1,4 +1,4 @@
-package com.indrisoftware.getitallconnected.getitallconnected;
+package com.indrisoftware.getitallconnected.app;
 
 import org.junit.Test;
 

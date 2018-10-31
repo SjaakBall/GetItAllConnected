@@ -1,4 +1,4 @@
-package com.indrisoftware.getitallconnected.getitallconnected.sync;
+package com.indrisoftware.getitallconnected.app.sync;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -13,7 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.indrisoftware.getitallconnected.getitallconnected.R;
+import com.indrisoftware.getitallconnected.app.R;
 
 import java.io.BufferedReader;
 import java.io.IOException;

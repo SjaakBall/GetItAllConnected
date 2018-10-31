@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.indrisoftware.getitallconnected.getitallconnected">
+    package="com.indrisoftware.getitallconnected.app">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Permissions required by the sync adapter -->
@@ -15,7 +15,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity android:name="com.indrisoftware.getitallconnected.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -23,8 +23,14 @@
             </intent-filter>
         </activity>
 
+        <provider
+            android:authorities="com.indrisoftware.getitallconnected.app"
+            android:name="com.indrisoftware.getitallconnected.app.data.AlertsProvider"
+            android:exported="false"
+            android:syncable="true" />
+
         <!-- SyncAdapter's dummy authentication service -->
-        <service android:name=".sync.AuthenticatorService">
+        <service android:name="com.indrisoftware.getitallconnected.app.sync.AuthenticatorService">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
@@ -34,7 +40,7 @@
         </service>
 
         <service
-            android:name=".sync.SyncService"
+            android:name="com.indrisoftware.getitallconnected.app.sync.SyncService"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.content.SyncAdapter" />

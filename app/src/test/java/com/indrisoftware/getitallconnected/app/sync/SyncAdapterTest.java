@@ -1,8 +1,6 @@
-package com.indrisoftware.getitallconnected.getitallconnected.sync;
+package com.indrisoftware.getitallconnected.app.sync;
 
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class SyncAdapterTest {
 

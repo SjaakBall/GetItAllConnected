@@ -1,4 +1,4 @@
-package com.indrisoftware.getitallconnected.getitallconnected.ui.main;
+package com.indrisoftware.getitallconnected.app.ui.main;
 
 import android.arch.lifecycle.ViewModel;
 
