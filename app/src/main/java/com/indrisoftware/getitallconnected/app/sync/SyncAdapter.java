@@ -5,15 +5,25 @@ import android.accounts.AccountManager;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.SyncRequest;
 import android.content.SyncResult;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.indrisoftware.getitallconnected.app.R;
+import com.indrisoftware.getitallconnected.app.Utility;
+import com.indrisoftware.getitallconnected.app.data.AlertsContract;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,6 +33,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.Vector;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private final String LOG_TAG = SyncAdapter.class.getSimpleName();
@@ -30,7 +41,18 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     // Interval at which to sync with the GIAC restservice, in seconds.
     // 60 seconds (1 minute) * 180 = 3 hours
     private static final int SYNC_INTERVAL = 60 * 180;
-    private static final int SYNC_FLEXTIME = SYNC_INTERVAL/3;
+    private static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
+    private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
+
+    private static final String[] NOTIFY_ALERTS_PROJECTION = new String[] {
+            AlertsContract.AlertsEntry.COLUMN_TEAM,
+            AlertsContract.AlertsEntry.COLUMN_TRAP_STATUS
+    };
+
+    // these indices must match the projection
+//    private static final int INDEX_ALERTS_ID = 0;
+    private static final int INDEX_TEAM = 0;
+    private static final int INDEX_TRAP_STATUS = 1;
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -40,6 +62,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         getSyncAccount(context);
     }
 
+    /**
+     * Helper method to get the fake account to be used with SyncAdapter, or make a new one
+     * if the fake account doesn't exist yet.  If we make a new account, we call the
+     * onAccountCreated method so we can initialize things.
+     *
+     * @param context The context used to access the account service
+     * @return a fake account.
+     */
     private static Account getSyncAccount(Context context) {
         final AccountManager accountManager = (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
 
@@ -84,6 +114,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     /**
      * Helper method to have the sync adapter sync immediately
+     *
      * @param context The context used to access the account service
      */
     public static void syncImmediately(final Context context) {
@@ -101,6 +132,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             ContentProviderClient provider,
             SyncResult syncResult) {
         Log.d(LOG_TAG, "Starting sync");
+        String teamQuery = Utility.getPreferredTeam(getContext());
 
         // These two need to be declared outside the try/catch
         // so that they can be closed in the finally block.
@@ -110,12 +142,18 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         // Will contain the raw JSON response as a string.
         String jsonStr = null;
 
-        final String CIAC_BASE_URL =
-                "http://localhost:8080/Getitallservice/alerts/TeamD";
-
-        Uri builtUri = Uri.parse(CIAC_BASE_URL).buildUpon().build();
 
         try {
+            final String CIAC_BASE_URL =
+                    "http://localhost:8080/Getitallservice/alerts/TeamD";
+            final String QUERY_PARAM = "q";
+
+            Uri builtUri = Uri
+                    .parse(CIAC_BASE_URL)
+                    .buildUpon()
+                    .appendQueryParameter("", teamQuery)
+                    .build();
+
             URL url = new URL(builtUri.toString());
             // Create the request to OpenWeatherMap, and open the connection
             urlConnection = (HttpURLConnection) url.openConnection();
@@ -166,7 +204,159 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void getDataFromJson(String jsonStr) {
+
+        final String GIACA_LIST = "list";
+        final String GIACA_TRAPSTATUS = "trapStatus";
+        final String GIACA_TEAM = "team";
+
         //get data from json
+        try {
+            JSONObject alertsJson = new JSONObject(jsonStr);
+            JSONArray alertsArray = alertsJson.getJSONArray(jsonStr);
+
+            Vector<ContentValues> cVVector = new Vector<ContentValues>(alertsArray.length());
+
+            for (int i = 0; i < alertsArray.length(); i++) {
+                JSONObject alertJsonObject = alertsArray.getJSONObject(i);
+                int trapStatus = alertJsonObject.getInt(GIACA_TRAPSTATUS);
+                String team = alertJsonObject.getString(GIACA_TEAM);
+
+                ContentValues alertsValues = new ContentValues();
+                alertsValues.put(AlertsContract.AlertsEntry.COLUMN_TRAP_STATUS, trapStatus);
+                alertsValues.put(AlertsContract.AlertsEntry.COLUMN_TEAM, team);
+
+                cVVector.add(alertsValues);
+            }
+
+            int inserted = 0;
+            // add to database
+            if (cVVector.size() > 0) {
+                ContentValues[] cvArray = new ContentValues[cVVector.size()];
+                cVVector.toArray(cvArray);
+                getContext().getContentResolver().bulkInsert(AlertsContract.AlertsEntry.CONTENT_URI, cvArray);
+
+//                // delete old data so we don't build up an endless history
+//                getContext().getContentResolver().delete(AlertsContract.AlertsEntry.CONTENT_URI,
+//                        AlertsContract.AlertsEntry.COLUMN_DATE + " <= ?",
+//                        new String[] {Long.toString(dayTime.setJulianDay(julianStartDay-1))});
+
+                notifyAlerts();
+            }
+
+            Log.d(LOG_TAG, "Sync Complete. " + cVVector.size() + " Inserted");
+
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, e.getMessage(), e);
+        }
         //put data in local database
     }
+
+    private void notifyAlerts() {
+        Context context = getContext();
+        //checking the last update and notify if it' the first of the day
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        String displayNotificationsKey = context.getString(R.string.pref_enable_notifications_key);
+        boolean displayNotifications = prefs.getBoolean(displayNotificationsKey,
+                Boolean.parseBoolean(context.getString(R.string.pref_enable_notifications_default)));
+
+        if (displayNotifications) {
+            String lastNotificationKey = context.getString(R.string.pref_last_notification);
+            long lastSync = prefs.getLong(lastNotificationKey, 0);
+
+            if (System.currentTimeMillis() - lastSync >= DAY_IN_MILLIS) {
+                // Last sync was more than 1 day ago, let's send a notification with the alerts.
+                String teamQuery = Utility.getPreferredTeam(context);
+
+                Uri alertsUri = AlertsContract.AlertsEntry.buildAlertsByTeam(teamQuery);
+
+                Cursor cursor = context.getContentResolver().query(alertsUri, NOTIFY_ALERTS_PROJECTION, null, null, null);
+
+                if (cursor.moveToFirst()){
+                    String team = cursor.getString(INDEX_TEAM);
+                    String trapStatus = cursor.getString(INDEX_TRAP_STATUS);
+                }
+            }
+
+        }
+
+    }
+
+    /*
+    * [{
+	"id": 1,
+	"productid": 1111,
+	"prodgroupid": 30,
+	"remoteSSID": "geen",
+	"msgcount": 2,
+	"inPlanning": null,
+	"planOrder": 1,
+	"eventMessage": null,
+	"frombundel": null,
+	"team": "TeamD",
+	"teamId": 4,
+	"customerChain": "Puy de dôme",
+	"customerChainId": 1,
+	"counter": null,
+	"trapStatus": false,
+	"macAddress": "005FB7173963E0F8",
+	"severity": "ERROR",
+	"temperature": 22,
+	"humidity": 49,
+	"battery": 99,
+	"rssi": -25,
+	"location": null,
+	"latitude": 52.2345,
+	"longitude": 6.2345,
+	"altitude": 2.0,
+	"customer": "JP Goedee",
+	"customerId": 14,
+	"city": "Isserteaux",
+	"trapFoodExp": null,
+	"trapLost": true,
+	"trap_sensor": false,
+	"temp_sensor": true,
+	"humid_sensor": true,
+	"updated": 1539160915000,
+	"dateIn": 1538998080000,
+	"alertMessages": [{
+		"id": 1,
+		"messageId": null,
+		"macAddress": "005FB7173963E0F8",
+		"filterId": 5,
+		"filter": "Kies de veilige marge Temp .   ",
+		"icon": "/resources/images/temp.png",
+		"fromBundel": null,
+		"severityId": 5,
+		"severity": "FATAL",
+		"color": "#000000",
+		"message": "Let op!!! Temperatuur niet goed",
+		"value1": 22,
+		"value_ext1": "C",
+		"value_image1": null,
+		"closed": false,
+		"dateUpdate": 1539160915000,
+		"dateIn": 1538998080000,
+		"boolean1": null
+	}, {
+		"id": 2,
+		"messageId": null,
+		"macAddress": "005FB7173963E0F8",
+		"filterId": 6,
+		"filter": "Kies de veilige marge Humid.  ",
+		"icon": "/resources/images/vocht.png",
+		"fromBundel": null,
+		"severityId": 3,
+		"severity": "ERROR",
+		"color": "#e51212",
+		"message": "Let op!!! Vocht niet goed",
+		"value1": 49,
+		"value_ext1": "%",
+		"value_image1": null,
+		"closed": false,
+		"dateUpdate": 1539160915000,
+		"dateIn": 1538998080000,
+		"boolean1": null
+	}]
+}]
+    * */
 }
